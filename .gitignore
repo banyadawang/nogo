@@ -348,3 +348,42 @@ MigrationBackup/
 
 # Ionide (cross platform F# VS Code tools) working folder
 .ionide/
+
+# ============================================
+# AlphaPig project exclusions
+# ============================================
+
+# CMake build output
+gui/build/
+
+# Training data (large, generated)
+work/dataset/
+work/model.keras
+work/model_torch.pt
+work/network.weights
+work/SelfPlay.exe
+*.exe
+
+# Benchmark build
+benchmark/scan_benchmark.exe
+benchmark/scan_benchmark.obj
+benchmark/network.weights
+
+# Experiment results
+results/
+
+# SFML
+SFML-2.6.2/
+
+# Binary / large files
+*.exe
+*.dll
+*.weights
+*.keras
+*.pt
+*.pth
+network.weights
+model.keras
+font.ttf
+dataset/
+

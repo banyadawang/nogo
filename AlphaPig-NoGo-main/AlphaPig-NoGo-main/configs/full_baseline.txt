@@ -1,0 +1,7 @@
+mcts.tree_reuse = false
+mcts.playouts = 200
+mcts.c_puct = 2.5
+test.num_games = 500
+test.seed = 42
+test.output = results/full_baseline_result.csv
+model.weight_file = network.weights

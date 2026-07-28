@@ -1,4 +1,5 @@
-﻿#include <iostream>
+﻿
+#include <iostream>
 #include <vector>
 #include "Alphapig.cpp"
 #include <omp.h>

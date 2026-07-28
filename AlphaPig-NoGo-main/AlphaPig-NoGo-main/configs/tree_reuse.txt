@@ -1,0 +1,16 @@
+# ============================================
+# AlphaPig M1.0 — Tree Reuse ON
+# ============================================
+
+# MCTS configuration
+mcts.tree_reuse = true
+mcts.playouts = 200
+mcts.c_puct = 2.5
+
+# Test configuration
+test.num_games = 100
+test.seed = 42
+test.output = results/tree_reuse_result.csv
+
+# Weight file
+model.weight_file = network.weights

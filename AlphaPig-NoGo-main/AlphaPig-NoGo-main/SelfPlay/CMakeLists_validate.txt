@@ -1,0 +1,27 @@
+add_executable(SelfPlayValidate
+    SelfPlayValidate.cpp
+)
+
+target_include_directories(SelfPlayValidate PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/..
+)
+
+if(MSVC)
+    target_compile_options(SelfPlayValidate PRIVATE /utf-8 /openmp)
+endif()
+
+# MKL
+set(MKL_ROOT "C:/Program Files (x86)/Intel/oneAPI/mkl/latest")
+if(EXISTS "${MKL_ROOT}")
+    target_include_directories(SelfPlayValidate PRIVATE "${MKL_ROOT}/include")
+    target_link_directories(SelfPlayValidate PRIVATE "${MKL_ROOT}/lib")
+    target_link_libraries(SelfPlayValidate PRIVATE
+        mkl_intel_lp64 mkl_sequential mkl_core
+    )
+endif()
+
+find_package(OpenMP)
+if(OpenMP_CXX_FOUND)
+    target_link_libraries(SelfPlayValidate PRIVATE OpenMP::OpenMP_CXX)
+endif()

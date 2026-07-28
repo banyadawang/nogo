@@ -1,4 +1,6 @@
+#ifndef NETWORK_CPP_INCLUDED
 #include "network.cpp"
+#endif
 #include <iostream>
 #include <algorithm>
 #include <vector>
@@ -9,60 +11,71 @@
 
 enum
 {
-	AI = 1,  // AIµÄÆå×Ó
-	OP = -1, // ¶ÔÊÖµÄÆå×Ó
-	BL = 0,  // ¿Õ°×
+	AI = 1,  // AIï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+	OP = -1, // ï¿½ï¿½ï¿½Öµï¿½ï¿½ï¿½ï¿½ï¿½
+	BL = 0,  // ï¿½Õ°ï¿½
 };
 
 class AlphaPig
 {
 public:
 
-	// Æå¾Ö×´Ì¬
+	// æ£‹ç›˜çŠ¶æ€
 	int board[81] = { 0 };
 	bool air_vis[81];
 
-	// ÍøÂç
+	// ç½‘ç»œ
 	Network* net;
 
-	// ÃÉÌØ¿¨ÂåÊ÷½Úµã
+	// ---- GUI Debug Info ----
+	struct DebugInfo
+	{
+		int   playouts = 0;
+		float value = 0.0f;
+		int   bestMove = -1;
+		int   totalMoves = 0;
+		float policy[81] = { 0 };
+		int   visits[81] = { 0 };
+	} debug_info;
+
+	// ï¿½ï¿½ï¿½Ø¿ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Úµï¿½
 	struct TreeNode
 	{
-		// ÊÇ·ñÎªĞÂ½Úµã
+		// ï¿½Ç·ï¿½Îªï¿½Â½Úµï¿½
 		bool is_new = true;
 
-		// ÆåÅÌ¼°ÑÕÉ«
+		// ï¿½ï¿½ï¿½Ì¼ï¿½ï¿½ï¿½É«
 		int board[81] = { 0 };
 		int color;
 
-		// ÏÂÒ»²½¿ÉĞĞÎ»ÖÃ
+		// ï¿½ï¿½Ò»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Î»ï¿½ï¿½
 		std::vector<int> available_last;
 		std::vector<int> available_next;
 
-		// ½ÚµãÊäÓ®Í³¼Æ
+		// ï¿½Úµï¿½ï¿½ï¿½Ó®Í³ï¿½ï¿½
 		double value = 0;
 		int total = 0;
 
-		// ÍøÂçÊä³ö
+		// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 		float net_policy[81];
 		float net_value;
 
-		// ¸¸½Úµã
+		// ï¿½ï¿½ï¿½Úµï¿½
 		TreeNode* father = nullptr;
 
-		// º¢×Ó½Úµã
+		// ï¿½ï¿½ï¿½Ó½Úµï¿½
 		TreeNode* children[81] = { nullptr };
 
-		// ×îºóÒ»ÊÖÎ»ÖÃ
+		// ï¿½ï¿½ï¿½Ò»ï¿½ï¿½Î»ï¿½ï¿½
 		int last_step = -1;
 
-		// ÊÇ·ñÏÈÊÖ
+		// ï¿½Ç·ï¿½ï¿½ï¿½ï¿½ï¿½
 		bool first;
 	};
 
 	TreeNode* root = nullptr;
 
-	// ÒÆ¶¯Î»ÖÃ
+	// ï¿½Æ¶ï¿½Î»ï¿½ï¿½
 	int moveTo(int p, int dir)
 	{
 		switch (dir)
@@ -79,7 +92,7 @@ public:
 		return p;
 	}
 
-	// ÅĞ¶ÏÊÇ·ñÓĞÆø
+	// ï¿½Ğ¶ï¿½ï¿½Ç·ï¿½ï¿½ï¿½ï¿½ï¿½
 	bool hasAir(int m_board[], int p)
 	{
 		air_vis[p] = true;
@@ -99,7 +112,7 @@ public:
 		return flag;
 	}
 
-	// ÅĞ¶ÏÊÇ·ñ¿ÉÒÔÏÂ×Ó
+	// ï¿½Ğ¶ï¿½ï¿½Ç·ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 	bool judgeAvailable(int m_board[], int p, int col)
 	{
 		if (m_board[p])
@@ -128,19 +141,80 @@ public:
 		return true;
 	}
 
-	// É¨Ãè¿ÉÒÔÏÂ×ÓµÄÎ»ÖÃ
+	// É¨ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Óµï¿½Î»ï¿½ï¿½
+	// Scan legal moves (BFS-optimized from Botzone)
+	// Only checks positions near last_step instead of all father candidates.
+	// Scan legal moves (BFS-optimized, result-identical to full scan)
+	// Scan legal moves (BFS-optimized, Botzone-style)
+	// Scan legal moves (BFS-optimized, Botzone reference)
+	// Scan legal moves
 	void scanAvailable(TreeNode* node)
 	{
+		int* board = node->board;
+
+		// Phase 1: pre-check positions near last_step (BFS optimization)
+		bool ban_his[81] = {false}, ban_me[81] = {false};
+		bool checked[81] = {false};
+		bool vis[81] = {false};
+
+		for (int dir = 0; dir < 4; dir++)
+		{
+			int p = moveTo(node->last_step, dir);
+			if (p < 0) continue;
+			if (board[p] == BL)
+			{
+				checked[p] = true;
+				ban_me[p] = !judgeAvailable(board, p, node->color);
+				ban_his[p] = !judgeAvailable(board, p, -node->color);
+			}
+			else if (!vis[p])
+			{
+				std::queue<int> queue;
+				bool tgas_vis[81] = {false};
+				int tgas = 0, tgas_size = 0;
+				queue.push(p);
+				while (!queue.empty())
+				{
+					int pq = queue.front(); queue.pop();
+					vis[pq] = true;
+					for (int d2 = 0; d2 < 4; d2++)
+					{
+						int dp = moveTo(pq, d2);
+						if (dp < 0) continue;
+						if (board[dp] == BL && !tgas_vis[dp])
+							{ tgas_vis[dp]=true; tgas_size++; tgas = dp; }
+						else if (board[dp]==board[pq] && !vis[dp])
+							{ queue.push(dp); }
+					}
+				}
+				if (tgas_size == 1)
+				{
+					checked[tgas] = true;
+					ban_me[tgas] = !judgeAvailable(board, tgas, node->color);
+					ban_his[tgas] = !judgeAvailable(board, tgas, -node->color);
+				}
+			}
+		}
+
+		// Phase 2: filter father lists (cached for checked, compute for others)
 		for (auto i : node->father->available_last)
-			if (judgeAvailable(node->board, i, -node->color))
-				node->available_next.push_back(i);
+		{
+			if (board[i] != BL) continue;
+			bool legal = checked[i] ? !ban_his[i]
+			                        : judgeAvailable(board, i, -node->color);
+			if (legal) node->available_next.push_back(i);
+		}
 
 		for (auto i : node->father->available_next)
-			if (judgeAvailable(node->board, i, node->color))
-				node->available_last.push_back(i);
+		{
+			if (board[i] != BL) continue;
+			bool legal = checked[i] ? !ban_me[i]
+			                        : judgeAvailable(board, i, node->color);
+			if (legal) node->available_last.push_back(i);
+		}
 	}
 
-	// ×óÓÒ·­×ª
+	// ï¿½ï¿½ï¿½Ò·ï¿½×ª
 	void flipData(float* data, int size, int channels)
 	{
 		for (int k = 0; k < channels; ++k)
@@ -153,7 +227,7 @@ public:
 				}
 	}
 
-	// Ğı×ª
+	// ï¿½ï¿½×ª
 	void rotateData(float* data, int size, int channels, int times)
 	{
 		times = (times % 4 + 4) % 4;
@@ -170,39 +244,39 @@ public:
 					}
 	}
 
-	// ÍøÂçÔ¤²â
+	// ï¿½ï¿½ï¿½ï¿½Ô¤ï¿½ï¿½
 	void predict(TreeNode* node)
 	{
-		// Ô¤²âµÄÊÇÏÂÒ»¸ö½Úµã£¬ÕâÒ»½ÚµãÎª¡°¶Ô·½¡±£¬ÏÂÒ»½ÚµãÎª¡°ÎÒ·½¡±£¬ËùÒÔÑÕÉ«¡¢ÏÈÊÖ¡¢Êä³ö¹ÀÖµ¶¼ÒªÈ¡Ïà·´Öµ
+		// Ô¤ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½ï¿½Úµã£¬ï¿½ï¿½Ò»ï¿½Úµï¿½Îªï¿½ï¿½ï¿½Ô·ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ò»ï¿½Úµï¿½Îªï¿½ï¿½ï¿½Ò·ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½É«ï¿½ï¿½ï¿½ï¿½ï¿½Ö¡ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Öµï¿½ï¿½ÒªÈ¡ï¿½à·´Öµ
 		float input[9 * 9 * 6] = { 0 };
 		for (int i = 0; i < 81; i++)
 		{
 			if (node->board[i] == -node->color)
-				input[0 * 81 + i] = 1; // µÚÒ»Í¨µÀÎªÎÒ·½Æå×Ó
+				input[0 * 81 + i] = 1; // ï¿½ï¿½Ò»Í¨ï¿½ï¿½Îªï¿½Ò·ï¿½ï¿½ï¿½ï¿½ï¿½
 			if (node->board[i] == node->color)
-				input[1 * 81 + i] = 1; // µÚ¶şÍ¨µÀÎª¶Ô·½Æå×Ó
+				input[1 * 81 + i] = 1; // ï¿½Ú¶ï¿½Í¨ï¿½ï¿½Îªï¿½Ô·ï¿½ï¿½ï¿½ï¿½ï¿½
 			if (!node->first)
-				input[4 * 81 + i] = 1; // µÚÎåÍ¨µÀÎªÎÒ·½ÊÇ·ñÏÈÊÖ
+				input[4 * 81 + i] = 1; // ï¿½ï¿½ï¿½ï¿½Í¨ï¿½ï¿½Îªï¿½Ò·ï¿½ï¿½Ç·ï¿½ï¿½ï¿½ï¿½ï¿½
 		}
 		for (auto i : node->available_next)
-			input[2 * 81 + i] = 1; // µÚÈıÍ¨µÀÎªÎÒ·½ÔÊĞíÂä×ÓÎ»ÖÃ
+			input[2 * 81 + i] = 1; // ï¿½ï¿½ï¿½ï¿½Í¨ï¿½ï¿½Îªï¿½Ò·ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Î»ï¿½ï¿½
 		for (auto i : node->available_last)
-			input[3 * 81 + i] = 1; // µÚËÄÍ¨µÀÎª¶Ô·½ÔÊĞíÂä×ÓÎ»ÖÃ
+			input[3 * 81 + i] = 1; // ï¿½ï¿½ï¿½ï¿½Í¨ï¿½ï¿½Îªï¿½Ô·ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Î»ï¿½ï¿½
 		if (node->last_step >= 0)
-			input[5 * 81 + node->last_step] = 1; // µÚÁùÍ¨µÀÎª¶Ô·½×îºóÒ»ÊÖÎ»ÖÃ
+			input[5 * 81 + node->last_step] = 1; // ï¿½ï¿½ï¿½ï¿½Í¨ï¿½ï¿½Îªï¿½Ô·ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½Î»ï¿½ï¿½
 
-		int flip = rand() % 2;   // ·­×ª
-		int rotate = rand() % 4; // Ğı×ª
+		int flip = rand() % 2;   // ï¿½ï¿½×ª
+		int rotate = rand() % 4; // ï¿½ï¿½×ª
 
-		// ¶ÔÊäÈë½øĞĞ·­×ª¡¢Ğı×ª
+		// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ğ·ï¿½×ªï¿½ï¿½ï¿½ï¿½×ª
 		if (flip)
 			flipData(input, 9, 6);
 		if (rotate)
 			rotateData(input, 9, 6, rotate);
 
-		float* output = net->predict(input); // Êä³öÎªÂä×Ó²ßÂÔºÍÎÒ·½¹ÀÖµ
+		float* output = net->predict(input); // ï¿½ï¿½ï¿½Îªï¿½ï¿½ï¿½Ó²ï¿½ï¿½Ôºï¿½ï¿½Ò·ï¿½ï¿½ï¿½Öµ
 
-		// ¶ÔÊä³ö½øĞĞ·´ÏòĞı×ª¡¢·­×ª
+		// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ğ·ï¿½ï¿½ï¿½ï¿½ï¿½×ªï¿½ï¿½ï¿½ï¿½×ª
 		if (rotate)
 			rotateData(output, 9, 1, -rotate);
 		if (flip)
@@ -212,7 +286,7 @@ public:
 		node->net_value = -output[81];
 	}
 
-	// ĞÂ½¨½Úµã
+	// ï¿½Â½ï¿½ï¿½Úµï¿½
 	inline TreeNode* newNode(TreeNode* father, int step)
 	{
 		TreeNode* newNode = new TreeNode();
@@ -228,7 +302,7 @@ public:
 		return newNode;
 	}
 
-	// É¾³ı·ÖÖ§
+	// É¾ï¿½ï¿½ï¿½ï¿½Ö§
 	void deleteTree(TreeNode* node)
 	{
 		if (node)
@@ -240,7 +314,7 @@ public:
 		}
 	}
 
-	// Ñ¡Ôñ×îÓÅ×Ó½Úµã
+	// Ñ¡ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ó½Úµï¿½
 	TreeNode* bestChild(TreeNode* node)
 	{
 		int max_step = 0;
@@ -265,11 +339,11 @@ public:
 		return newNode(node, max_step);
 	}
 
-	// Ñ¡Ôñ&Ä£Äâ&»ØËİ
+	// Ñ¡ï¿½ï¿½&Ä£ï¿½ï¿½&ï¿½ï¿½ï¿½ï¿½
 	void select(TreeNode* node)
 	{
-		// Ñ¡Ôñ
-		while (!node->available_next.empty()) // Õâ¸ö½ÚµãµÄÓÎÏ·Ã»ÓĞ½áÊø
+		// Ñ¡ï¿½ï¿½
+		while (!node->available_next.empty()) // ï¿½ï¿½ï¿½ï¿½Úµï¿½ï¿½ï¿½ï¿½Ï·Ã»ï¿½Ğ½ï¿½ï¿½ï¿½
 		{
 			node = bestChild(node);
 			if (node->is_new)
@@ -279,14 +353,14 @@ public:
 			}
 		}
 
-		// ¹ÀÖµ
+		// ï¿½ï¿½Öµ
 		double value;
 		if (node->available_next.empty())
 			value = 1;
 		else
 			value = node->net_value;
 
-		// »ØËİ
+		// ï¿½ï¿½ï¿½ï¿½
 		while (node)
 		{
 			node->total += 1;
@@ -296,7 +370,7 @@ public:
 		}
 	}
 
-	// ³õÊ¼»¯Ê÷
+	// ï¿½ï¿½Ê¼ï¿½ï¿½ï¿½ï¿½
 	void initRoot(int last_step)
 	{
 		root = new TreeNode();
@@ -329,7 +403,7 @@ public:
 		constexpr double double_max = std::numeric_limits<double>::max();
 		if (pi < std::log(root->total) / std::log(double_max))
 		{
-			// ·µ»Ø×î´óÖµ
+			// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Öµ
 			int max_step = 0;
 			int max = -1;
 			for (auto step : next_steps)
@@ -345,7 +419,7 @@ public:
 		}
 		else
 		{
-			// °´ÕÕpi¸ÅÂÊËæ»ú·µ»Ø
+			// ï¿½ï¿½ï¿½ï¿½piï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 			double total = 0;
 			std::vector<std::tuple<int, double>> part;
 			for (auto step : next_steps)
@@ -375,17 +449,18 @@ public:
 
 	std::tuple<int, std::vector<float>> trainChoose(int last_step)
 	{
-		// ³õÊ¼»¯¸ù½Úµã
+		// Init root
 		initRoot(last_step);
 
-		// ÅĞ¶ÏÊÇ·ñÊäÁË
+		// Terminal check
 		if (root->available_next.empty())
 		{
 			deleteTree(root);
+			root = nullptr;
 			return std::make_tuple(-1, std::vector<float>());
 		}
 
-		// ËÑË÷
+		// MCTS search
 		for (int i = 0; i < 200; i++)
 			select(root);
 
@@ -399,9 +474,30 @@ public:
 				count++;
 				total += root->children[i]->total;
 			}
+
+		// --- GUI Debug Info ---
+		debug_info.playouts = root->total;
+		debug_info.value = -root->value / root->total;
+		debug_info.totalMoves = (int)root->available_next.size();
+		memset(debug_info.policy, 0, sizeof(debug_info.policy));
+		memset(debug_info.visits, 0, sizeof(debug_info.visits));
+		int best_visit = -1;
+		for (int j = 0; j < 81; j++)
+		{
+			if (root->children[j])
+			{
+				debug_info.policy[j] = root->net_policy[j];
+				debug_info.visits[j] = root->children[j]->total;
+				if (debug_info.visits[j] > best_visit)
+				{
+					best_visit = debug_info.visits[j];
+					debug_info.bestMove = j;
+				}
+			}
+		}
 		}
 
-		// Êä³ö¸ÅÂÊ
+		// Probability distribution
 		for (int i = 0; i < 81; i++)
 		{
 			if (root->children[i])
@@ -410,10 +506,11 @@ public:
 				probs.push_back(0);
 		}
 
-		// Ñ¡Ôñ×îºÃµÄÏÂ·¨
+		// Best move selection
 		int best = bestStep(count < 20 ? 1 : 0);
 
 		deleteTree(root);
+		root = nullptr;
 
 		return std::make_tuple(best, probs);
 	}

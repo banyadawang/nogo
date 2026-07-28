@@ -1,4 +1,3 @@
-from keras.backend import set_session
 from keras.regularizers import L2
 from keras.optimizers import SGD
 from keras.layers import Input, Dense, Conv2D, Flatten, BatchNormalization, ReLU, add, Reshape, Softmax
@@ -9,7 +8,7 @@ import tensorflow as tf
 import os
 import struct
 
-modelPathName = 'model'
+modelPathName = 'model.keras'
 trainPathName = 'dataset'
 
 
@@ -124,6 +123,11 @@ trainDatas = []
 for file in os.listdir(trainPathName):
     if os.path.exists(os.path.join(trainPathName, file)):
         trainDatas.append(np.loadtxt(os.path.join(trainPathName, file)))
+
+if len(trainDatas) == 0:
+    print('No training data found. Skipping training.')
+    exit(0)
+
 trainDatas = np.concatenate(trainDatas, axis=0)
 
 print('Start training...')
