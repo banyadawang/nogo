@@ -354,7 +354,7 @@ MigrationBackup/
 # ============================================
 
 # CMake build output
-gui/build/
+**/gui/build/
 
 # Training data (large, generated)
 work/dataset/
@@ -386,4 +386,8 @@ network.weights
 model.keras
 font.ttf
 dataset/
+*.weights.torch
+
+# IDE
+.vscode/
 
